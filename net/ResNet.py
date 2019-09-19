@@ -2,16 +2,21 @@ import torch
 import torch.nn as nn
 from net.BottleNeck import BottleNeck
 from net.BasicBlock import BasicBlock
+from net.OCL_Conv2D import OCL_Conv2D
 
 class ResNet(nn.Module):
+    """
+        Modified ResNet class to use the Convolution implementation in OpenCL
+    """
 
-    def __init__(self, block, num_block, num_classes=100):
+    def __init__(self, block, num_block, num_classes=100, use_ocl=False):
         super().__init__()
-
+        self.use_ocl = use_ocl
         self.in_channels = 64
 
         self.conv1 = nn.Sequential(
-            nn.Conv2d(3, 64, kernel_size=3, padding=1, bias=False),
+            OCL_Conv2D(3, 64, kernel_size=3, padding=1, bias=False, use_ocl=use_ocl),
+            #nn.Conv2d(3, 64, kernel_size=3, padding=1, bias=False),
             nn.BatchNorm2d(64),
             nn.ReLU(inplace=True))
         
@@ -45,7 +50,7 @@ class ResNet(nn.Module):
         strides = [stride] + [1] * (num_blocks - 1)
         layers = []
         for stride in strides:
-            layers.append(block(self.in_channels, out_channels, stride))
+            layers.append(block(self.in_channels, out_channels, stride, use_ocl=self.use_ocl))
             self.in_channels = out_channels * block.expansion
         
         return nn.Sequential(*layers)
@@ -74,10 +79,10 @@ def resnet34():
     """
     return ResNet(BasicBlock, [3, 4, 6, 3])
 
-def resnet50():
+def resnet50(use_ocl=False):
     """ return a ResNet 50 object
     """
-    return ResNet(BottleNeck, [3, 4, 6, 3])
+    return ResNet(BottleNeck, [3, 4, 6, 3], use_ocl=use_ocl)
 
 def resnet101():
     """ return a ResNet 101 object

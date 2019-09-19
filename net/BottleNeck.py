@@ -1,16 +1,18 @@
 import torch.nn as nn
+from net.OCL_Conv2D import OCL_Conv2D
 
 class BottleNeck(nn.Module):
     """Residual block for resnet over 50 layers
     """
     expansion = 4
-    def __init__(self, in_channels, out_channels, stride=1):
+    def __init__(self, in_channels, out_channels, stride=1, use_ocl=False):
         super().__init__()
         
         # defining pipeline for residual calculation
         
         self.residual_function = nn.Sequential(
-            nn.Conv2d(in_channels, out_channels, kernel_size=1, bias=False),
+            #nn.Conv2d(in_channels, out_channels, kernel_size=1, bias=False),
+            OCL_Conv2D(in_channels, out_channels, kernel_size=1, bias=False, use_ocl=use_ocl),
             nn.BatchNorm2d(out_channels),
             nn.ReLU(inplace=True),
             nn.Conv2d(out_channels, out_channels, stride=stride, kernel_size=3, padding=1, bias=False),
