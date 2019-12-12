@@ -76,12 +76,20 @@ def testConvolution():
     print("Dimensions of np_cX - " + str(np_dim_cX))
     np_dim_cKernel = np.array(np_cKernel.shape)
     print("Dimensions of np_cKernel - " + str(np_dim_cKernel))
+    print(np_cKernel.shape)
+    print(type(np_dim_cKernel[0]))
 
     # copy np_arrays into buffers of device
+
+    # input
     buf_cX = cl.Buffer(ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=np_cX)
+    # input dimension
     buf_dim_cX = cl.Buffer(ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=np_dim_cX)
+    # kernel
     buf_cKernel = cl.Buffer(ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=np_cKernel)
+    # kernel dimension
     buf_dim_cKernel = cl.Buffer(ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=np_dim_cKernel)
+    # output
     buf_cOutput = cl.Buffer(ctx, mf.WRITE_ONLY, np_cOutput.nbytes)
 
     #prg.conv2d(queue, np_cOutput.shape, None, 
@@ -89,10 +97,18 @@ def testConvolution():
     #    buf_cKernel, np_cKernel.shape[0], np_cKernel.shape[1],
     #    buf_cOutput, np_cOutput.shape[0], np_cOutput.shape[1])
 
-    prg.conv2d2(queue, np_cOutput.shape, None,
-        buf_cX, buf_dim_cX,
-        buf_cKernel, buf_dim_cKernel,
-        buf_cOutput)
+    print("Calling Kernel with global_work_size: " + str(np_cOutput.shape[0] * np_cOutput.shape[1]))
+
+
+    convKernel = prg.conv2d2
+    convKernel.set_args(buf_cKernel, buf_dim_cKernel, buf_cX, buf_dim_cX, buf_cOutput)
+    ev = cl.enqueue_nd_range_kernel(queue, convKernel, np_cOutput.shape, None)
+    
+    #prg.conv2d2(queue, np_cOutput.shape, None,
+    #    buf_cX, buf_dim_cX,
+    #    buf_cKernel, buf_dim_cKernel,
+    #    buf_cOutput)
+
     cl.enqueue_copy(queue, np_cOutput, buf_cOutput)
     print(type(np_cOutput))
     print(np_cOutput.dtype)
