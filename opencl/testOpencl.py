@@ -52,6 +52,7 @@ def testConvolution():
     prg = cl.Program(ctx, kernels).build()
 
     # init parameters for kernel-call
+
     cX = torch.ones(10, 10)
     print("Input x shape - " + str(cX.shape))
     print(cX)
@@ -72,9 +73,10 @@ def testConvolution():
     print(str(np_cKernel))
     print("Numpy cKernel dType - " + str(np_cKernel.dtype))
 
-    np_dim_cX = np.array(np_cX.shape)
+    np_dim_cX = np.array(np_cX.shape, dtype=np.int32) # fits device integer bit-length
     print("Dimensions of np_cX - " + str(np_dim_cX))
-    np_dim_cKernel = np.array(np_cKernel.shape)
+    print("Dtype of np_cX - " + str(type(np_dim_cX[0])))
+    np_dim_cKernel = np.array(np_cKernel.shape, dtype=np.int32) # fits device integer bit-length
     print("Dimensions of np_cKernel - " + str(np_dim_cKernel))
     print(np_cKernel.shape)
     print(type(np_dim_cKernel[0]))
@@ -92,16 +94,19 @@ def testConvolution():
     # output
     buf_cOutput = cl.Buffer(ctx, mf.WRITE_ONLY, np_cOutput.nbytes)
 
-    #prg.conv2d(queue, np_cOutput.shape, None, 
-    #    buf_cX, np_cX.shape[0], np_cX.shape[1], 
-    #    buf_cKernel, np_cKernel.shape[0], np_cKernel.shape[1],
-    #    buf_cOutput, np_cOutput.shape[0], np_cOutput.shape[1])
+    ######
+    # Options
+    ######
+    # stride
+    np_stride = np.array([1, 1], dtype=np.int32)
+
+    buf_stride = cl.Buffer(ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=np_stride)
 
     print("Calling Kernel with global_work_size: " + str(np_cOutput.shape[0] * np_cOutput.shape[1]))
 
 
     convKernel = prg.conv2d2
-    convKernel.set_args(buf_cKernel, buf_dim_cKernel, buf_cX, buf_dim_cX, buf_cOutput)
+    convKernel.set_args(buf_cKernel, buf_dim_cKernel, buf_cX, buf_dim_cX, buf_cOutput, buf_stride)
     ev = cl.enqueue_nd_range_kernel(queue, convKernel, np_cOutput.shape, None)
     
     #prg.conv2d2(queue, np_cOutput.shape, None,
