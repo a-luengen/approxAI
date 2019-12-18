@@ -14,25 +14,32 @@ __kernel void conv2d2(__global const float *_kernel, __global const long *k_dim,
 
     int res_width = get_local_size(0);
     int res_height = get_local_size(1);
+
     if( idx_height == 0 && idx_width == 0) 
     {
         printf("Local width = %d, Local height = %d \n", res_width, res_height);
         printf("Dimension of Kernel: %ld, %ld \n", k_dim[0], k_dim[1]);
     }
-    
-    int input_width = k_dim[0] / 2;
-    int input_height = k_dim[1] / 2;
-
-    //printf("Calc position: %d , %d, %f \n", idx_width, idx_height, _kernel[0]);
 
     // calc convolution on position
+
     float temp_sum = 0.0;
+    int k_middle_width = k_dim[1] / 2;
+    int k_middle_height = k_dim[0] / 2;
+
     for(int j = 0; j < k_dim[1]; j++) // iterate over height
     {
         for(int k = 0; k < k_dim[0]; k++) // iterate over width -> caching
         {
             // TODO multiply with values from input
-            temp_sum += _kernel[j * k_dim[0] + k] * 2.0;
+            int x_input = idx_height + 1;
+            int y_input = idx_width + 1;
+
+            float kernel_val = _kernel[j * k_dim[0] + k];
+
+            float input_val = input[(x_input - k_middle_width + k) + (y_input - k_middle_height + j) * i_dim[0]];
+
+            temp_sum += kernel_val * input_val;//_kernel[j * k_dim[0] + k] * input[x_input + i_dim[0] * idx_width];
         }
     }
     result[idx_height * res_width + idx_width] = temp_sum;
