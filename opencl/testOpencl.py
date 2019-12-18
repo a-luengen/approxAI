@@ -55,7 +55,7 @@ def testConvolution():
     cX = torch.ones(10, 10)
     print("Input x shape - " + str(cX.shape))
     print(cX)
-    cKernel = torch.ones(3, 3)
+    cKernel = getKernel(4)
     print("Input kernel shape - " + str(cKernel.shape))
     print(cKernel)
     cOutput = torch.zeros(8, 8)
@@ -114,6 +114,16 @@ def testConvolution():
     print(np_cOutput.dtype)
     print(np_cOutput)
 
+
+def getKernel(num):
+    if num == 0:
+        return torch.ones(3, 3)
+    elif num == 1:
+        return torch.zeros(3,3)
+    elif num == 2:
+        return torch.ones(5,5)
+    else:     
+        return torch.tensor([[0.0, 1.0, 0.0], [0.0, 1.0, 0.0], [0.0, 1.0, 0.0]])
 
 if __name__ == "__main__":
     
