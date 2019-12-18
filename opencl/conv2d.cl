@@ -5,43 +5,46 @@ __kernel void sum(__global const float *temp1_g, __global const float *temp2_g, 
         }
 
 
-__kernel void conv2d2(__global const float *_kernel, __global const long *k_dim, __global float *input, __global int *i_dim, __global float *result)
+__kernel void conv2d2(__global const float *_kernel, __global const int *k_dim, __global float *input, __global int *i_dim, __global float *result, __global const int *stride)
 {
     //int idx_width = get_global_id(0);
-    int idx_height = get_global_id(1);
+    int idx_height = get_global_id(1) * stride[1];
 
-    int idx_width = get_global_id(0);
+    int idx_width = get_global_id(0) * stride[0];
 
     int res_width = get_local_size(0);
     int res_height = get_local_size(1);
 
     if( idx_height == 0 && idx_width == 0) 
     {
+        printf("####################################\n");
         printf("Local width = %d, Local height = %d \n", res_width, res_height);
-        printf("Dimension of Kernel: %ld, %ld \n", k_dim[0], k_dim[1]);
+        printf("Dimension of Kernel: %d, %d \n", k_dim[0], k_dim[1]);
+        printf("Stride: %d, %d \n", stride[0], stride[1]);
+        printf("####################################\n");
     }
 
     // calc convolution on position
 
     float temp_sum = 0.0;
+
+    // position of middle of the filter
     int k_middle_width = k_dim[1] / 2;
     int k_middle_height = k_dim[0] / 2;
+
+    int x_input = idx_height + 1;
+    int y_input = idx_width + 1;
 
     for(int j = 0; j < k_dim[1]; j++) // iterate over height
     {
         for(int k = 0; k < k_dim[0]; k++) // iterate over width -> caching
         {
-            // TODO multiply with values from input
-            int x_input = idx_height + 1;
-            int y_input = idx_width + 1;
-
-            float kernel_val = _kernel[j * k_dim[0] + k];
-
-            float input_val = input[(x_input - k_middle_width + k) + (y_input - k_middle_height + j) * i_dim[0]];
-
-            temp_sum += kernel_val * input_val;//_kernel[j * k_dim[0] + k] * input[x_input + i_dim[0] * idx_width];
+            temp_sum += 
+                _kernel[j * k_dim[0] + k] * 
+                input[(x_input - k_middle_width + k) + (y_input - k_middle_height + j) * i_dim[0]];
         }
     }
+
     result[idx_height * res_width + idx_width] = temp_sum;
 }
 
