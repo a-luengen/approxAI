@@ -1,3 +1,6 @@
 {
-    "python.pythonPath": "/home/alex/Dokumente/Arbeit/CAPP/approxAI/.venv/bin/python3"
+    "python.pythonPath": "/home/alex/Dokumente/Arbeit/CAPP/approxAI/.venv/bin/python3",
+    "python.linting.pylintArgs": [
+        "--generated-member=numpy.* ,torch.*"
+    ]
 }
