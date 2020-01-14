@@ -5,7 +5,14 @@ __kernel void sum(__global const float *temp1_g, __global const float *temp2_g, 
         }
 
 
-__kernel void conv2d2(__global const float *_kernel, __global const int *k_dim, __global float *input, __global int *i_dim, __global float *result, __global const int *stride)
+__kernel void conv2d2(
+    __global const float *_kernel, 
+    __global const int *k_dim, 
+    __global float *input, 
+    __global int *i_dim, 
+    __global float *result, 
+    __global const int *stride
+    )
 {
     //int idx_width = get_global_id(0);
     int idx_height = get_global_id(1) * stride[1];
