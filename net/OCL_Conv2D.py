@@ -41,33 +41,68 @@ class OCL_Conv2D(nn.Conv2d):
 
         return cl.Program(oclContext, kernels).build()
 
+    def getOclContext(self):
+        platforms = cl.get_platforms()
+        return cl.Context(
+            dev_type=cl.device_type.ALL,
+            properties=[(cl.context_properties.PLATFORM, platforms[0])]
+        )
+
     def getNumpyOutputDimensions(self, input_dim, kernel_dim):
-        output_width = (input_dim[0] - kernel_dim[0] + 2 * self.padding) // self.stride + 1
-        output_height = (input_dim[1] - kernel_dim[1] + 2 * self.padding) // self.stride + 1
+        """
+            Given two arrays representing the dimension-size 
+            for an input and kernel, calculates the dimension-size
+            when performing a convolution.
+        """
+        output_height = (input_dim[0] - kernel_dim[0] + 2 * self.padding[0]) // self.stride[0] + 1
+        output_width = (input_dim[1] - kernel_dim[1] + 2 * self.padding[1]) // self.stride[1] + 1
+        return np.array([output_height, output_width], dtype=np.int32)
+
+    def getOutputDimensions(self, input):
+        output_width = (input.shape[1] - self.kernel_size[1] + 2 * self.padding[1]) // self.stride[1] + 1
+        output_height = (input.shape[0] - self.kernel_size[0] + 2 * self.padding[0]) // self.stride[0] + 1
         return np.array([output_width, output_height], dtype=np.int32)
 
-    def getOutputDimensions(self, input, weight):
-        output_width = (input.shape[0] - self.kernel_size[0] + 2 * self.padding[0]) // self.stride[0] + 1
-        output_height = (input.shape[1] - self.kernel_size[1] + 2 * self.padding[1]) // self.stride[1] + 1
-        return np.array([output_width, output_height], dtype=np.int32)
+    def performOCLconvolution(self, input, weight):
+        """
+            Takes input and weight as torch.tensor type 
+            and performs the correct convolution on 
+            to produce a torch.tensor type result
+            WARNING: ignores batch-size
+        """
+        output_dim = self.getOutputDimensions(input[0][0])
 
-    def performOCLconvolution(self, input, weight, output_dim):
+        
+        result_np = np.empty((
+                output_dim[0],
+                output_dim[1],
+                weight.shape[2]),
+                dtype=np.float32)
+        
+        # aggregates 2D numpy arrays, one per channel
+        result_tensor = []
 
-        for kernel_plane in weight:
-            output_plane = np.zeros(output_dim, dtype=np.foat32)
+        for kernel_plane in weight[0]:
+            output_plane = np.zeros(output_dim, dtype=np.float32)
 
-            for input_plane in input:
-                temp_res = self.OCLconvolution2D(input_plane, kernel_plane) 
-                # add temp_res onto output_plane
+            for input_plane in input[0]:
+                temp_res = self.OCLconvolution2D(input_plane.numpy(), kernel_plane.numpy()) 
                 output_plane = output_plane.__add__(temp_res)
-            # insert output_plane into correct channel
 
-        return self.OCLconvolution2D(self, x, self.kernel)
+            # insert output_plane into correct channel
+            result_tensor.append(torch.tensor(output_plane))
+
+        return torch.stack(result_tensor)
+
 
     def OCLconvolution2D(self, input_2d, kernel_2d):
-
+        """
+            Takes 2 dimensional input_2d and 2 dimensional
+            filter as numpy array to perform the convolution with
+            Returns 2 dimensional numpy-array result
+        """
         # context and programm
-        ctx = cl.create_some_context()
+        ctx = self.getOclContext()
         prg = self.getOCLprogramm(ctx)
         
         queue = cl.CommandQueue(ctx)
@@ -76,9 +111,9 @@ class OCL_Conv2D(nn.Conv2d):
         # conversion of data types and creation of buffers
 
         # 1. Input data, with dimensions
-        np_x = input.numpy()
+        np_x = input_2d
         if self.padding != 0:
-            np.zeros((np_x.shape[0] + self.padding, np_x.shape[1] + self.padding), dtype=np.int32)
+            np.zeros((np_x.shape[0] + self.padding[0], np_x.shape[1] + self.padding[1]), dtype=np.int32)
 
         np_dim_x = np.array(np_x.shape, dtype=np.int32)
 
@@ -86,7 +121,7 @@ class OCL_Conv2D(nn.Conv2d):
         buffer_dim_x = cl.Buffer(ctx ,mf.READ_ONLY |mf.COPY_HOST_PTR, hostbuf=np_dim_x)
 
         # 2. kernel, with dimensions
-        np_kernel = kernel.numpy()
+        np_kernel = kernel_2d
         np_dim_kernel = np.array(np_kernel.shape, dtype=np.int32)
 
         buffer_kernel = cl.Buffer(ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=np_kernel)
@@ -94,30 +129,36 @@ class OCL_Conv2D(nn.Conv2d):
 
         # 3. Result buffer
         np_dim_output = self.getNumpyOutputDimensions(np_dim_x, np_dim_kernel)
-        np_output = np.array(np_dim_output.shape, dtype=np.int32)
-
-        buffer_output = cl.Buffer(ctx, mf.READ_WRITE, None)
-
-        # buffers
+        np_output = np.zeros(np_dim_output, dtype=np.float32)
         
+        buffer_output = cl.Buffer(ctx, mf.READ_WRITE, np_output.nbytes)
 
-        #buffer_kernel = cl.Buffer(ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=self.weight.detach().numpy())
-
-        #buffer_result = cl.Buffer(ctx, mf.WRITE_ONLY, x.numpy().nbytes)
+        # 4. Stride buffer
+        buffer_stride = cl.Buffer(ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=np.array((self.stride, self.stride), dtype=np.int32))
 
         # OpenCL kernel, executed for single result
-        prg.conv2d2()
+        convolutionFunct = prg.conv2d2
+        convolutionFunct.set_args(
+            buffer_kernel, 
+            buffer_dim_kernel, 
+            buffer_x,
+            buffer_dim_x,
+            buffer_output,
+            buffer_stride)
 
-        return result
+        #result = np.zeros(np_dim_output.shape, dtype=np.float32)
+        cl.enqueue_nd_range_kernel(queue, convolutionFunct, np_output.shape, None)
+        cl.enqueue_copy(queue, np_output, buffer_output)
+        return np_output
 
 
-    def ocl_conv2d_forward(self, input, weight):
-        output_dim = self.getOutputDimensions(input, weight)
+    def ocl_conv2d_forward(self, input):
+        output_dim = self.getOutputDimensions(input)
         return torch.ones((output_dim[0], output_dim[1], self.out_channels), dtype=torch.float32)
 
     def forward(self, x):
         if self.use_ocl == True:
-            return self.ocl_conv2d_forward(x, self.weight)
+            return self.ocl_conv2d_forward(x)
         else:
             return super(OCL_Conv2D, self).forward(x)
         
