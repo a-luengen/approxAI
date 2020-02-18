@@ -22,7 +22,8 @@ __kernel void conv2d2(
     int res_width = get_local_size(0);
     int res_height = get_local_size(1);
 
-    if( idx_height == 0 && idx_width == 0) 
+/*
+    if(true && idx_height == 0 && idx_width == 0) 
     {
         printf("####################################\n");
         printf("Local width = %d, Local height = %d \n", res_width, res_height);
@@ -30,7 +31,7 @@ __kernel void conv2d2(
         printf("Stride: %d, %d \n", stride[0], stride[1]);
         printf("####################################\n");
     }
-
+*/
     // calc convolution on position
 
     float temp_sum = 0.0;
