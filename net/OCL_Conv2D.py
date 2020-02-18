@@ -26,8 +26,6 @@ class OCL_Conv2D(nn.Conv2d):
         
         PATH_TO_KERNEL = 'opencl/conv2d.cl'
 
-        print("Performing OCL Convolution with impl: " + PATH_TO_KERNEL)
-
         # prevent using cached source code, as this may cause 
         # "compiler caching failed exception"
         os.environ['PYOPENCL_COMPILER_OUTPUT'] = '1'
@@ -59,41 +57,43 @@ class OCL_Conv2D(nn.Conv2d):
         return np.array([output_height, output_width], dtype=np.int32)
 
     def getOutputDimensions(self, input):
+        assert(len(input.shape) == 2)
         output_width = (input.shape[1] - self.kernel_size[1] + 2 * self.padding[1]) // self.stride[1] + 1
         output_height = (input.shape[0] - self.kernel_size[0] + 2 * self.padding[0]) // self.stride[0] + 1
-        return np.array([output_width, output_height], dtype=np.int32)
+        return np.array([output_height, output_width], dtype=np.int32)
 
     def performOCLconvolution(self, input, weight):
         """
             Takes input and weight as torch.tensor type 
-            and performs the correct convolution on 
+            and performs the correct convolution on them
             to produce a torch.tensor type result
-            WARNING: ignores batch-size
+            Input tensor has to be (channels, height, width)
+            WARNING: do not use 4D tensor with batchsize
         """
-        output_dim = self.getOutputDimensions(input[0][0])
+        assert(len(input.shape) == 3)
 
+        output_dim = self.getOutputDimensions(input[0])
         
-        result_np = np.empty((
-                output_dim[0],
-                output_dim[1],
-                weight.shape[2]),
-                dtype=np.float32)
-        
-        # aggregates 2D numpy arrays, one per channel
         result_tensor = []
+        for channel_weights in weight:
+            channel_result_tensor = []
+            for kernel_plane in channel_weights:
 
-        for kernel_plane in weight[0]:
-            output_plane = np.zeros(output_dim, dtype=np.float32)
+                channel_output_plane = np.zeros(output_dim, dtype=np.float32)
 
-            for input_plane in input[0]:
-                temp_res = self.OCLconvolution2D(input_plane.numpy(), kernel_plane.numpy()) 
-                output_plane = output_plane.__add__(temp_res)
+                for input_plane in input:
+                    temp_res = self.OCLconvolution2D(
+                        input_plane.detach().numpy(),
+                        kernel_plane.detach().numpy()
+                    )
+                    channel_output_plane = channel_output_plane.__add__(temp_res)
+                
+                channel_result_tensor.append(channel_output_plane)
 
-            # insert output_plane into correct channel
-            result_tensor.append(torch.tensor(output_plane))
+            # add result for output channel
+            result_tensor.append(torch.tensor(channel_result_tensor[0]))
 
         return torch.stack(result_tensor)
-
 
     def OCLconvolution2D(self, input_2d, kernel_2d):
         """
@@ -101,6 +101,9 @@ class OCL_Conv2D(nn.Conv2d):
             filter as numpy array to perform the convolution with
             Returns 2 dimensional numpy-array result
         """
+        assert(len(input_2d.shape) == 2)
+        assert(len(kernel_2d.shape) == 2)
+
         # context and programm
         ctx = self.getOclContext()
         prg = self.getOCLprogramm(ctx)
@@ -146,15 +149,18 @@ class OCL_Conv2D(nn.Conv2d):
             buffer_output,
             buffer_stride)
 
-        #result = np.zeros(np_dim_output.shape, dtype=np.float32)
         cl.enqueue_nd_range_kernel(queue, convolutionFunct, np_output.shape, None)
         cl.enqueue_copy(queue, np_output, buffer_output)
         return np_output
 
 
     def ocl_conv2d_forward(self, input):
-        output_dim = self.getOutputDimensions(input)
-        return torch.ones((output_dim[0], output_dim[1], self.out_channels), dtype=torch.float32)
+        result = []
+        for batch in input:
+            tempRes = self.performOCLconvolution(batch, self.weight)
+            result.append(tempRes)
+
+        return torch.stack(result)
 
     def forward(self, x):
         if self.use_ocl == True:

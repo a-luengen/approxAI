@@ -22,7 +22,8 @@ class Test(unittest.TestCase):
         self.assertTrue(oclComponent is not None)
 
     def test_1_convolution_returns_tensor_when_forwarding(self):
-        tensor = torch.ones(10, 10, 1, dtype=torch.float32)
+        #tensor = torch.ones(10, 10, 1, dtype=torch.float32)
+        tensor = torch.ones((1, 1, 10, 10), dtype=torch.float32)
         self.in_channels = 1
         self.out_channels = 3
         self.kernel_size = 3
@@ -32,21 +33,24 @@ class Test(unittest.TestCase):
 
         self.assertTrue(isinstance(result, torch.Tensor))
     
-    def test_2_convolution_returns_tensor_with_correct_dimensions(self):
-        tensor = torch.ones(11, 11, 1, dtype=torch.float32)
+    def test_2_convolution_returns_tensor_with_correct_dimensions_on_forward(self):
+        #tensor = torch.ones(11, 11, 1, dtype=torch.float32)
+        tensor = torch.ones((1, 1, 11, 11), dtype=torch.float32)
         self.in_channels = 1
         self.out_channels = 3
         self.kernel_size = 3
 
         convolution = OCL_Conv2D(self.in_channels, self.out_channels, self.kernel_size, use_ocl=True)
         result = convolution.forward(tensor)
-        
-        self.assertEqual(result.shape[0], tensor.shape[0] - 2)
-        self.assertEqual(result.shape[1], tensor.shape[1] - 2)
-        self.assertEqual(result.shape[2], self.out_channels)
+
+        self.assertEqual(result.shape[0], 1)
+        self.assertEqual(result.shape[1], self.out_channels)
+        self.assertEqual(result.shape[2], tensor.shape[2] - 2)
+        self.assertEqual(result.shape[3], tensor.shape[3] - 2)
 
     def test_3_convolution_with_stride_returns_correct_dimensions(self):
-        tensor = torch.ones(10, 10, 1, dtype=torch.float32)
+        #tensor = torch.ones(10, 10, 1, dtype=torch.float32)
+        tensor = torch.ones((1, 1, 10, 10), dtype=torch.float32)
         self.in_channels = 1
         self.out_channels = 3
         self.kernel_size = 3
@@ -55,9 +59,10 @@ class Test(unittest.TestCase):
         convolution = OCL_Conv2D(self.in_channels, self.out_channels, self.kernel_size, stride=self.stride, use_ocl=True)
         result = convolution.forward(tensor)
         
-        self.assertEqual(result.shape[0], 4)
-        self.assertEqual(result.shape[1], 4)
-        self.assertEqual(result.shape[2], self.out_channels)
+        self.assertEqual(result.shape[0], 1)
+        self.assertEqual(result.shape[1], self.out_channels)
+        self.assertEqual(result.shape[2], 4)
+        self.assertEqual(result.shape[3], 4)
 
     def test_4_OCLconvolution2D_returns_numpy_array_as_result(self):
         convolution = OCL_Conv2D(self.in_channels, self.out_channels, self.kernel_size, self.stride, use_ocl=True)
@@ -105,12 +110,11 @@ class Test(unittest.TestCase):
         self.out_channels = 8
         self.in_channels = 1
         # (batch_size, channel, height, width)
-        input_tensor = torch.ones((self.batch_size, 1, 10, 10))
+        input_tensor = torch.ones((1, 10, 10))
         weight_tensor = torch.ones((self.batch_size, 1, 3, 3))
         convolution = OCL_Conv2D(self.in_channels, self.out_channels, self.kernel_size, use_ocl=True)
 
         result = convolution.performOCLconvolution(input_tensor, weight_tensor)
-
         res_shape = result.shape
         print(res_shape)
         self.assertEqual(res_shape[0], 1)
