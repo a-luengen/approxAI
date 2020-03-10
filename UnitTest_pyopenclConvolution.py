@@ -34,13 +34,13 @@ class Test(unittest.TestCase):
             properties=[(cl.context_properties.PLATFORM, platforms[0])])
 
 
-    def test_compile_without_error(self):
+    def test_0_compile_without_error(self):
         """
             Simple test to asure, that the opencl kernel is building without errors.
         """
         self.compileAndGetOclKernelProgramm(self.getOclContext())
 
-    def test_executes_hello_world_kernel(self):
+    def test_1_executes_hello_world_kernel(self):
         """
             Test that a simple hello-world kernel is executed correctly.
             Hello-World example calculates element wise sum of two
@@ -65,7 +65,7 @@ class Test(unittest.TestCase):
         for a, b, c in zip(arrayA, arrayB, arrayC):
             self.assertEqual(a + b, c)
     
-    def test_executes_convolution_kernel_with_3x3_kernel(self):
+    def test_2_executes_convolution_kernel_with_3x3_kernel(self):
         """
             Executes a basic 2-dimensional convolution with a 
             3x3 kernel on a nxn Input Matrix containing only ones.
@@ -91,7 +91,13 @@ class Test(unittest.TestCase):
         bufferStride = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=np.array((1,1), dtype=np.int32))
 
         convolutionFunct = programm.conv2d2
-        convolutionFunct.set_args(bufferKernel, bufferKernelDim, bufferInput, bufferInputDim, bufferOutput, bufferStride)
+        convolutionFunct.set_args(
+            bufferKernel, 
+            bufferKernelDim, 
+            bufferInput, 
+            bufferInputDim, 
+            bufferOutput, 
+            bufferStride)
         cl.enqueue_nd_range_kernel(queue, convolutionFunct, output.shape, None)
         cl.enqueue_copy(queue, output, bufferOutput)
 
