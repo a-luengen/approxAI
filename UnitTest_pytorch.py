@@ -52,5 +52,9 @@ class Test(unittest.TestCase):
         self.assertEqual(tensor4.shape[1], height)
         self.assertEqual(tensor4.shape[2], width)
 
+    def test_3_tensorType_shouldBeFloat(self):
+        tensor = torch.ones((10, 10))
+        self.assertEqual(tensor.dtype, torch.float32)
+
 if __name__ == "__main__":
     unittest.main()
