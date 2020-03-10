@@ -1,6 +1,12 @@
 import unittest
 import torch
+from torch.nn import Conv2d
 import numpy as np
+import torchvision
+import random
+from utils import getDataLoaders, classes
+
+
 # Unit testing for the Convolution implementation
 
 from net.OCL_Conv2D import OCL_Conv2D
@@ -22,7 +28,6 @@ class Test(unittest.TestCase):
         self.assertTrue(oclComponent is not None)
 
     def test_1_convolution_returns_tensor_when_forwarding(self):
-        #tensor = torch.ones(10, 10, 1, dtype=torch.float32)
         tensor = torch.ones((1, 1, 10, 10), dtype=torch.float32)
         self.in_channels = 1
         self.out_channels = 3
@@ -34,7 +39,6 @@ class Test(unittest.TestCase):
         self.assertTrue(isinstance(result, torch.Tensor))
     
     def test_2_convolution_returns_tensor_with_correct_dimensions_on_forward(self):
-        #tensor = torch.ones(11, 11, 1, dtype=torch.float32)
         tensor = torch.ones((1, 1, 11, 11), dtype=torch.float32)
         self.in_channels = 1
         self.out_channels = 3
@@ -116,10 +120,81 @@ class Test(unittest.TestCase):
 
         result = convolution.performOCLconvolution(input_tensor, weight_tensor)
         res_shape = result.shape
-        print(res_shape)
+
         self.assertEqual(res_shape[0], 1)
         self.assertEqual(res_shape[1], 8)
         self.assertEqual(res_shape[2], 8)
 
+    def _9_performOCLconvolution_returnsCorrectResult(self):
+        out_channels = 8
+        in_channels = 3
+        kernel_size = 3
+        tensor_width = random.randrange(kernel_size, 20)
+        tensor_height = random.randrange(kernel_size, 20)
+
+        input_tensor = torch.ones((in_channels, tensor_height, tensor_width))
+        weight_tensor = torch.ones((out_channels, kernel_size, kernel_size))
+
+        convolution = OCL_Conv2D(in_channels, out_channels, kernel_size, use_ocl=True)
+
+        # act
+        result = convolution.performOCLconvolution(input_tensor, weight_tensor)
+
+        self.assertIsNotNone(result)
+
+    def test_10_forwardImage_shouldprovideSameResultAsVanilla(self):
+        batch_size = 1
+        out_channels = 5
+        kernel_size = 5
+
+        _, testLoader = getDataLoaders(batch_size, batch_size)
+
+        dataIter = iter(testLoader)
+        images, labels = dataIter.next()
+
+        convolution = OCL_Conv2D(images.size()[1], out_channels, kernel_size, use_ocl=True)
+        convolutionOrig = Conv2d(images.size()[1], out_channels, kernel_size)
+
+        convolutionOrig.weight.data = convolution.weight.data
+
+        convWeight_plane = convolution.weight[0][0]
+        origWeight_plane = convolutionOrig.weight[0][0]
+        
+
+        result = convolution.forward(images)
+        resultOrig = convolutionOrig.forward(images)
+
+        self.assertIsNotNone(result, "Result should not be None")
+        self.assertIsNotNone(resultOrig, "orig Result should not be None")
+
+        self.assertEqual(result.size()[0], resultOrig.size()[0], 
+            "Resulting Batch size should be the same")
+        self.assertEqual(result.size()[1], resultOrig.size()[1], 
+            "Resulting amount of Channels should be the same")
+        self.assertEqual(result.size()[2], result.size()[2], 
+            "Resulting height should be the same.")
+        self.assertEqual(result.size()[3], result.size()[3], 
+            "Resulting width should be the same.")
+
+        print("Testing equality of weights.")
+        for j in range(convWeight_plane.size()[0]):
+            for i in range(convWeight_plane.size()[1]):
+                val_ocl = convWeight_plane[j][i]
+                val_orig = origWeight_plane[j][i]
+                self.assertEqual(val_ocl, val_orig, 
+                    "Original and OCL implementation should be the same, but was ocl={:5.23f}, orig={:5.23f}"
+                    .format(val_ocl, val_orig))
+
+        print("Testing equality of result.")
+        for batchIdx in range(result.size()[0]):
+            for channelIdx in range(result.size()[1]):
+                for col in range(result.size()[2]):
+                    for row in range(result.size()[3]):
+                        val_ocl = result[batchIdx][channelIdx][col][row]
+                        val_orig = resultOrig[batchIdx][channelIdx][col][row]
+                        self.assertEqual(val_ocl, val_orig, 
+                        "Result of orig. and ocl impl. should be the same, but was ocl={:5.23f}, orig={:5.23f}"
+                        .format(val_ocl, val_orig))
+        
 if __name__ == "__main__":
     unittest.main()
