@@ -22,6 +22,9 @@ class OCL_Conv2D(nn.Conv2d):
         self.use_ocl = use_ocl
         super(OCL_Conv2D, self).__init__(in_channels, out_channels, kernel_size, stride, padding, dilation, groups, bias, padding_mode)
 
+        self.context = self.getOclContext()
+        self.programm = self.getOCLprogramm(self.context)
+
     def getOCLprogramm(self, oclContext):
         
         PATH_TO_KERNEL = 'opencl/conv2d.cl'
@@ -68,15 +71,28 @@ class OCL_Conv2D(nn.Conv2d):
             and performs the correct convolution on them
             to produce a torch.tensor type result
             Input tensor has to be (channels, height, width)
+            Weights are (out_channels, in_channels , height, width)
             WARNING: do not use 4D tensor with batchsize
         """
         assert(len(input.shape) == 3)
+        assert(len(weight.shape) == 4)
+
+        print("Input Channels:  ", self.in_channels)
+        print("Output Channels: ", self.out_channels)
+        print("Weight shape:    ", weight.shape)
+        print("Input shape:     ", input.shape)
 
         output_dim = self.getOutputDimensions(input[0])
         
         result_tensor = []
+        channel_count = 0
         for channel_weights in weight:
+            channel_count += 1
+            print("Computing Channel:  ", channel_count)
+
+
             channel_result_tensor = []
+
             for kernel_plane in channel_weights:
 
                 channel_output_plane = np.zeros(output_dim, dtype=np.float32)
@@ -90,7 +106,7 @@ class OCL_Conv2D(nn.Conv2d):
                 
                 channel_result_tensor.append(channel_output_plane)
 
-            # add result for output channel
+            # append result of the output channel
             result_tensor.append(torch.tensor(channel_result_tensor[0]))
 
         return torch.stack(result_tensor)
@@ -105,8 +121,10 @@ class OCL_Conv2D(nn.Conv2d):
         assert(len(kernel_2d.shape) == 2)
 
         # context and programm
-        ctx = self.getOclContext()
-        prg = self.getOCLprogramm(ctx)
+        #ctx = self.getOclContext()
+        #prg = self.getOCLprogramm(ctx)
+        ctx = self.context
+        prg = self.programm
         
         queue = cl.CommandQueue(ctx)
         mf = cl.mem_flags
