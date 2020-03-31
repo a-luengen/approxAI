@@ -70,7 +70,7 @@ class Test(unittest.TestCase):
             Executes a basic 2-dimensional convolution with a 
             3x3 kernel on a nxn Input Matrix containing only ones.
         """
-        self.ARRAY_SIZE = 5
+        self.ARRAY_SIZE = 4
         context = self.getOclContext()
         programm = self.compileAndGetOclKernelProgramm(context)
         queue = cl.CommandQueue(context)
