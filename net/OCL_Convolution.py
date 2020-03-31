@@ -61,7 +61,6 @@ class OCL_Convolution(nn.Conv2d):
         assert(len(kernel_dim) == 3)
         output_height = (input_dim[1] - kernel_dim[1] + 2 * self.padding[0]) // self.stride[0] + 1
         output_width = (input_dim[2] - kernel_dim[2] + 2 * self.padding[1]) // self.stride[1] + 1
-
         return np.array([self.out_channels, output_height, output_width], dtype=np.int32)
 
     def performOCLconvolution(self, input, weight):
@@ -73,18 +72,12 @@ class OCL_Convolution(nn.Conv2d):
             Weights are (out_channels, in_channels , height, width)
             WARNING: do not use 4D tensor with batchsize
         """
-        assert(len(input.shape) == 3)
-        assert(len(weight.shape) == 4)
-
-        #print("Input Channels:  ", self.in_channels)
-        #print("Output Channels: ", self.out_channels)
-        #print("Weight shape:    ", weight.shape)
-        #print("Input shape:     ", input.shape)
+        assert (len(input.shape) == 3), "Input shapes size was {}".format(len(input.shape))
+        assert (len(weight.shape) == 4)
         
         result_tensor = []
 
         for out_channel in weight:
-            #print("Kernel value for out_channel iteration: ", out_channel.shape)
             out_channel_result_tensor = self.OCLconvolution(
                 input.detach().numpy(), 
                 out_channel.detach().numpy())
@@ -152,7 +145,6 @@ class OCL_Convolution(nn.Conv2d):
         #print("Enqueue Kernel with nd-range shape of output: ", np_output.shape)
         cl.enqueue_nd_range_kernel(queue, convolutionFunct, np_output.shape, None)
         cl.enqueue_copy(queue, np_output, buffer_output)
-        print("OCL-First value=", np_output[1][2])
         return np_output
 
 
@@ -161,7 +153,6 @@ class OCL_Convolution(nn.Conv2d):
         for batch in input:
             tempRes = self.performOCLconvolution(batch, self.weight)
             result.append(tempRes)
-
         return torch.stack(result)
 
     def forward(self, x):

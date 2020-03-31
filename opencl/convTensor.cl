@@ -10,6 +10,8 @@ __kernel void convolution(
     __global const int *stride
 ) {
 
+    bool DEBUG = false;
+
     int input_channels = k_dim[0];
 
     int kernel_mid_height = k_dim[1] / 2;
@@ -19,7 +21,7 @@ __kernel void convolution(
     int height_pos = get_global_id(0) * stride[0] + kernel_mid_height;
     int width_pos = get_global_id(1) * stride[1] + kernel_mid_width;
 
-    if(get_global_id(0) == 0 && get_global_id(1) == 0) {
+    if(DEBUG && get_global_id(0) == 0 && get_global_id(1) == 0) {
         printf("########Input values##############\n");
         printf("Kernel dimensions: %d, %d, %d\n", k_dim[0], k_dim[1], k_dim[2]);
         printf(" Input dimensions: %d, %d, %d\n", i_dim[0], i_dim[1], i_dim[2]);
@@ -91,19 +93,18 @@ __kernel void convolution(
         //         temp_sum
         //     );
         // }
-        if(height_pos == 1 && width_pos == 1) {
+        if(DEBUG && height_pos == 1 && width_pos == 1) {
             printf("Writing value=%.5f on height=%d, width=%d, index=%d\n", 
                 temp_sum, 
                 height_pos - 1, 
                 width_pos - 1, 
-                height_pos - 1 + (width_pos - 1) * o_dim[0]);
+                (height_pos - 1) * o_dim[0] + (width_pos - 1));
         }
-        //_output[(height_pos - 1) + (width_pos - 1) * o_dim[0]] = temp_sum;
-        _output[get_global_id(0) + get_global_id(1) * o_dim[0]] = temp_sum;
+        _output[get_global_id(0) * o_dim[0] + get_global_id(1)] = temp_sum;
     }
 
     barrier(CLK_GLOBAL_MEM_FENCE);
-    if(height_pos == 1 && width_pos == 1) {
+    if(DEBUG && height_pos == 1 && width_pos == 1) {
         printf("\n[");
         for (int i = 0; i < o_dim[0]; i++) {
             printf("[");
