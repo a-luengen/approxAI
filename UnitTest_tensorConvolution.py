@@ -127,6 +127,23 @@ class Test(unittest.TestCase):
         py_result = py_conv.forward(input_t)
         ocl_result = ocl_conv.forward(input_t)
 
+        print(py_result.shape)
+        print(ocl_result.shape)
+
+        self.assertEqualWeights(ocl_conv.weight, py_conv.weight)
+        self.assertEqualTensor(ocl_result, py_result)
+
+    def test_7_testPadding_withRandomInput_producesSameRsultAsPytorch(self):
+        test_padding = 5
+        ocl_conv = OCL_Convolution(self.in_channels, self.out_channels, self.kernel_height, padding=test_padding, use_ocl=True)
+        py_conv = Conv2d(self.in_channels, self.out_channels, self.kernel_height, bias=False, dilation=1, padding=test_padding, stride=1, groups=1)
+
+        input_t, _ = self.getRandomTestTensorAndWeight()
+        py_conv.weight.data = ocl_conv.weight.data
+
+        py_result = py_conv.forward(input_t)
+        ocl_result = ocl_conv.forward(input_t)
+        
         self.assertEqualWeights(ocl_conv.weight, py_conv.weight)
         self.assertEqualTensor(ocl_result, py_result)
 

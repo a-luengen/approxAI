@@ -107,8 +107,10 @@ class OCL_Convolution(nn.Conv2d):
 
         # 1. Input data, with dimensions
         np_x = input_3d
-        if self.padding != 0:
-            np.zeros((np_x.shape[0] + self.padding[0], np_x.shape[1] + self.padding[1]), dtype=np.int32)
+        if self.padding[0] > 0 or self.padding[1] > 0:
+            pad_val = 0.0 if self.padding_mode == 'zeros' else 1.0
+            np_x = np.pad(np_x, ((0,0), self.padding, self.padding), mode='constant', constant_values=0.0)
+
 
         np_dim_x = np.array(np_x.shape, dtype=np.int32)
 
