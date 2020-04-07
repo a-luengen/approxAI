@@ -1,5 +1,6 @@
 import unittest
 
+import time
 from net.ResNet import resnet50
 import torch
 import torchvision
@@ -84,8 +85,14 @@ class Test(unittest.TestCase):
 
         dataIter = iter(testLoader)
         images, labels = dataIter.next()
+
+        start = time.time()
         outputs_ocl = netOcl(images)
+        print("      Ocl Inference Time [sec]: ", time.time() - start)
+
+        start = time.time()
         outputs_py = netpy(images)
+        print("Pytorch-Inferencing Time [sec]: ", time.time() - start)
 
         _, predicted_ocl = torch.max(outputs_ocl, 1)
         _, predicted_py = torch.max(outputs_py, 1)

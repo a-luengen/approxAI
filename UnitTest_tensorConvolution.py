@@ -1,5 +1,6 @@
 import unittest
 import torch
+import random
 from torch.nn import Conv2d
 import numpy as np
 
@@ -196,6 +197,48 @@ class Test(unittest.TestCase):
         ocl_result = ocl_conv.forward(input_t)
         self.assertEqualWeights(ocl_conv.weight, py_conv.weight)
         self.assertEqualTensor(ocl_result, py_result)
+
+    def test_10_randomConfig_testingSameResultAsPytorch(self):
+
+        for i in range(3):
+
+            in_channels = random.randint(3, 64)
+            out_channels = random.randint(3, 64)
+            kernel_width = random.randrange(1, in_channels - 2, 2)
+            bias = True if random.randint(1, 2) == 1 else False
+            padding = random.randint(0, kernel_width // 2)
+            stride = random.randint(1, 4)
+
+            if False:
+                print("        Loop: ", i + 1)
+                print(" in_channels: ", in_channels)
+                print("out_channels: ", out_channels)
+                print("kernel_width: ", kernel_width)
+                print("        bias: ", bias)
+                print("     padding: ", padding)
+                print("      stride: ", stride)
+
+            ocl_conv, py_conv = self.getOCLandPytorchConvolutionWithSettings(
+                self.in_channels,
+                self.out_channels,
+                self.kernel_width,
+                c_bias=bias,
+                c_dilation=1,
+                c_padding=0,
+                c_stride=stride,
+                c_groups=1
+            )
+
+            input_t, _ = self.getRandomTestTensorAndWeight()
+
+            py_conv.weight.data = ocl_conv.weight.data
+            if bias:
+                py_conv.bias.data = ocl_conv.bias.data
+
+            py_result = py_conv.forward(input_t)
+            ocl_result = ocl_conv.forward(input_t)
+            self.assertEqualWeights(ocl_conv.weight, py_conv.weight)
+            self.assertEqualTensor(ocl_result, py_result)
 
 if __name__ == "__main__":
     unittest.main()
