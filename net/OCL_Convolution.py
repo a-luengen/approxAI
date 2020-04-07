@@ -77,15 +77,20 @@ class OCL_Convolution(nn.Conv2d):
         
         result_tensor = []
 
-        for out_channel in weight:
+        i = 0
+        for out_channel in weight:             
+            t_bias = (0.0) if self.bias is None else self.bias.detach().numpy()[i]
             out_channel_result_tensor = self.OCLconvolution(
                 input.detach().numpy(), 
-                out_channel.detach().numpy())
+                out_channel.detach().numpy(),
+                bias=t_bias
+            )
             result_tensor.append(torch.tensor(out_channel_result_tensor))
+            i+=1
 
         return torch.stack(result_tensor)
 
-    def OCLconvolution(self, input_3d, kernel_3d):
+    def OCLconvolution(self, input_3d, kernel_3d, bias=(0.0)):
         """
             Takes 3 dimensional input_3d and 3 dimensional
             weight as numpy array to perform the convolution with
@@ -134,6 +139,9 @@ class OCL_Convolution(nn.Conv2d):
         # 4. Stride buffer
         buffer_stride = cl.Buffer(ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=np.array((self.stride, self.stride), dtype=np.int32))
 
+        # 5. bias buffer
+        buffer_bias = cl.Buffer(ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=np.array(bias))
+
         # OpenCL kernel, executed for single result
         convolutionFunct = prg.convolution
         convolutionFunct.set_args(
@@ -143,7 +151,8 @@ class OCL_Convolution(nn.Conv2d):
             buffer_dim_x,
             buffer_output,
             buffer_dim_output,
-            buffer_stride)
+            buffer_stride,
+            buffer_bias)
         #print("Enqueue Kernel with nd-range shape of output: ", np_output.shape)
         cl.enqueue_nd_range_kernel(queue, convolutionFunct, np_output.shape, None)
         cl.enqueue_copy(queue, np_output, buffer_output)

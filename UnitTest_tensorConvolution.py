@@ -55,6 +55,23 @@ class Test(unittest.TestCase):
                             "Original and OCL implementation should be the same, but was ocl={:5.23f}, orig={:5.23f} - iter:{}-{}-{}-{}"
                             .format(val_ocl, val_orig, i, j, k, l))
 
+    def getOCLandPytorchConvolutionWithSettings(self, in_channels, out_channels, kernel_size, c_bias=False, c_dilation=1, c_padding=0, c_stride=1, c_groups=1):
+        ocl_conv = OCL_Convolution(in_channels, out_channels, kernel_size, 
+            stride=c_stride, 
+            padding=c_padding, 
+            dilation=c_dilation, 
+            groups=c_groups, 
+            bias=c_bias, 
+            padding_mode='zeros', 
+            use_ocl=True)
+        py_conv = Conv2d(in_channels, out_channels, kernel_size, 
+            bias=c_bias, 
+            dilation=c_dilation, 
+            padding=c_padding, 
+            stride=c_stride, 
+            groups=c_groups)
+        return (ocl_conv, py_conv)
+
     def test_0_createInputAndWeightTensorWithoutException(self):
         input_tensor, input_weight = self.getTestTensorAndWeight()
         self.assertIsNotNone(input_tensor)
@@ -127,13 +144,10 @@ class Test(unittest.TestCase):
         py_result = py_conv.forward(input_t)
         ocl_result = ocl_conv.forward(input_t)
 
-        print(py_result.shape)
-        print(ocl_result.shape)
-
         self.assertEqualWeights(ocl_conv.weight, py_conv.weight)
         self.assertEqualTensor(ocl_result, py_result)
 
-    def test_7_testPadding_withRandomInput_producesSameRsultAsPytorch(self):
+    def test_7_testPadding_withRandomInput_producesSameResultAsPytorch(self):
         test_padding = 5
         ocl_conv = OCL_Convolution(self.in_channels, self.out_channels, self.kernel_height, padding=test_padding, use_ocl=True)
         py_conv = Conv2d(self.in_channels, self.out_channels, self.kernel_height, bias=False, dilation=1, padding=test_padding, stride=1, groups=1)
@@ -144,6 +158,42 @@ class Test(unittest.TestCase):
         py_result = py_conv.forward(input_t)
         ocl_result = ocl_conv.forward(input_t)
         
+        self.assertEqualWeights(ocl_conv.weight, py_conv.weight)
+        self.assertEqualTensor(ocl_result, py_result)
+    
+    def test_8_testStride_withRandomInput_producesSameResultAsPytorch(self):
+        
+        test_stride = (2, 2)
+
+        ocl_conv, py_conv = self.getOCLandPytorchConvolutionWithSettings(
+            self.in_channels,
+            self.out_channels,
+            self.kernel_width,
+            c_stride=test_stride
+        )
+
+        input_t, _ = self.getRandomTestTensorAndWeight()
+        py_conv.weight.data = ocl_conv.weight.data
+
+        py_result = py_conv.forward(input_t)
+        ocl_result = ocl_conv.forward(input_t)
+
+        self.assertEqualWeights(ocl_conv.weight, py_conv.weight)
+        self.assertEqualTensor(ocl_result, py_result)
+
+    def test_9_testBias_withRandomInput_producesSameResultAsPytorch(self):
+        ocl_conv, py_conv = self.getOCLandPytorchConvolutionWithSettings(
+            self.in_channels,
+            self.out_channels,
+            self.kernel_width,
+            c_bias=True
+        )
+
+        input_t, _ = self.getRandomTestTensorAndWeight()
+        py_conv.weight.data = ocl_conv.weight.data
+        py_conv.bias.data = ocl_conv.bias.data
+        py_result = py_conv.forward(input_t)
+        ocl_result = ocl_conv.forward(input_t)
         self.assertEqualWeights(ocl_conv.weight, py_conv.weight)
         self.assertEqualTensor(ocl_result, py_result)
 
