@@ -7,7 +7,8 @@ __kernel void convolution(
     __global const int *i_dim,
     __global float *_output,
     __global const int *o_dim,
-    __global const int *stride
+    __global const int *stride,
+    __global const float *bias
 ) {
 
     bool DEBUG = false;
@@ -27,11 +28,12 @@ __kernel void convolution(
         printf(" Input dimensions: %d, %d, %d\n", i_dim[0], i_dim[1], i_dim[2]);
         printf("Output dimensions: %d, %d\n", o_dim[0], o_dim[1]);
         printf("           Stride: %d, %d\n", stride[0], stride[1]);
+        printf("             Bias: %.5f\n", bias[0]);
         printf("        Work Size: %zu, %zu, %zu\n", get_global_size(0), get_global_size(1), 0L);
         printf("##################################\n");
     }
 
-    if (height_pos - 1 < o_dim[0] && width_pos - 1 < o_dim[1]) {
+    if (height_pos - 1 < i_dim[1] && width_pos - 1 < i_dim[2]) {
         float temp_sum = 0.0;
 
         
@@ -39,7 +41,7 @@ __kernel void convolution(
         for(int i = 0; i < input_channels; i++) {
             float result = 0.0;
 
-            
+            // calculate convolution on height, widht position 
             for(int j = 0; j < k_dim[1]; j++) { // height
                 
                 for(int k = 0; k < k_dim[2]; k++) { // width
@@ -100,7 +102,7 @@ __kernel void convolution(
                 width_pos - 1, 
                 (height_pos - 1) * o_dim[0] + (width_pos - 1));
         }
-        _output[get_global_id(0) * o_dim[0] + get_global_id(1)] = temp_sum;
+        _output[get_global_id(0) * o_dim[0] + get_global_id(1)] = *bias + temp_sum;
     }
 
     barrier(CLK_GLOBAL_MEM_FENCE);
