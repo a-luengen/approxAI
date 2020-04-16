@@ -10,9 +10,9 @@ class Test(unittest.TestCase):
 
     batch_size = 1
     out_channels = 2
-    in_channels = 3
-    input_width = 6
-    input_height = 6
+    in_channels = 4
+    input_width = 12
+    input_height = 12
     kernel_height = 3
     kernel_width = 3
 
@@ -106,22 +106,25 @@ class Test(unittest.TestCase):
 
         py_outputDim = Conv2d(self.in_channels, self.out_channels, self.kernel_height).forward(input_t).shape[1:]
 
-        input_shape = input_t.shape[1:]
-        weight_shape = weight_t.shape[1:]
+        input_shape = input_t.shape[1:] # remove batchsize from input
+        weight_shape = weight_t.shape
 
         output_dimensions = ocl_conv.getNumpyOutputDimensions(input_shape, weight_shape)
 
         self.assertEqual(type(output_dimensions), type(np.array([])))
-        self.assertEqual(output_dimensions[0], self.out_channels)
+        self.assertEqual(output_dimensions[0], py_outputDim[0])
         self.assertEqual(output_dimensions[1], py_outputDim[1])
         self.assertEqual(output_dimensions[2], py_outputDim[2])
 
+    #@unittest.skip("")
     def test_4_forwardOnTensorConvolution_wihtoutException(self):
         ocl_conv = OCL_Convolution(self.in_channels, self.out_channels, self.kernel_height, use_ocl=True)
         input_t, _ = self.getTestTensorAndWeight()
 
         ocl_conv.forward(input_t)
 
+
+    #@unittest.skip("")
     def test_5_forwardOnTensorConvolution_producesSameResultAsPytorch(self):
         ocl_conv = OCL_Convolution(self.in_channels, self.out_channels, self.kernel_height, use_ocl=True)
         py_conv = Conv2d(self.in_channels, self.out_channels, self.kernel_height, bias=False, dilation=1, padding=0, stride=1, groups=1)
@@ -134,7 +137,8 @@ class Test(unittest.TestCase):
 
         self.assertEqualWeights(ocl_conv.weight, py_conv.weight)
         self.assertEqualTensor(ocl_result, py_result)
-
+    
+    #@unittest.skip("")
     def test_6_forwardOnTensorConvolution_withRandomInput_producesSameResultAsPytorch(self):
         ocl_conv = OCL_Convolution(self.in_channels, self.out_channels, self.kernel_height, use_ocl=True)
         py_conv = Conv2d(self.in_channels, self.out_channels, self.kernel_height, bias=False, dilation=1, padding=0, stride=1, groups=1)
@@ -145,9 +149,11 @@ class Test(unittest.TestCase):
         py_result = py_conv.forward(input_t)
         ocl_result = ocl_conv.forward(input_t)
 
+
         self.assertEqualWeights(ocl_conv.weight, py_conv.weight)
         self.assertEqualTensor(ocl_result, py_result)
 
+    #@unittest.skip("")
     def test_7_testPadding_withRandomInput_producesSameResultAsPytorch(self):
         test_padding = 5
         ocl_conv = OCL_Convolution(self.in_channels, self.out_channels, self.kernel_height, padding=test_padding, use_ocl=True)
@@ -162,6 +168,7 @@ class Test(unittest.TestCase):
         self.assertEqualWeights(ocl_conv.weight, py_conv.weight)
         self.assertEqualTensor(ocl_result, py_result)
     
+    #@unittest.skip("")
     def test_8_testStride_withRandomInput_producesSameResultAsPytorch(self):
         
         test_stride = (2, 2)
@@ -182,6 +189,7 @@ class Test(unittest.TestCase):
         self.assertEqualWeights(ocl_conv.weight, py_conv.weight)
         self.assertEqualTensor(ocl_result, py_result)
 
+    #@unittest.skip("")
     def test_9_testBias_withRandomInput_producesSameResultAsPytorch(self):
         ocl_conv, py_conv = self.getOCLandPytorchConvolutionWithSettings(
             self.in_channels,
@@ -198,11 +206,12 @@ class Test(unittest.TestCase):
         self.assertEqualWeights(ocl_conv.weight, py_conv.weight)
         self.assertEqualTensor(ocl_result, py_result)
 
+    #@unittest.skip("")
     def test_10_randomConfig_testingSameResultAsPytorch(self):
 
-        for i in range(3):
+        for i in range(5):
 
-            in_channels = random.randint(3, 64)
+            in_channels = random.randint(4, 64)
             out_channels = random.randint(3, 64)
             kernel_width = random.randrange(1, in_channels - 2, 2)
             bias = True if random.randint(1, 2) == 1 else False
