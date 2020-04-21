@@ -14,18 +14,20 @@ from net.ResNet import resnet50
 from net.WarmUpLR import WarmUpLR
 from utils import getDataLoaders
 
+import time
+
 # Hyper-parameters
 
 lr = 0.01
 momentum = 0.9
 weight_decay = 1e-5 # or 5e-4
-epochs = 1
-batch_size_train = 256# 4 or 256
-batch_size_test = 256 # 4 or 256
+epochs = 10
+batch_size_train = 64# 4 or 256
+batch_size_test = 64 # 4 or 256
 
 # settings
 warm_up = 1 # default = 1
-save_epoch = 1 # save model after this amount of epochs
+save_epoch = 3 # save model after this amount of epochs
 milestones = [60, 120, 160]
 use_cuda = False
 
@@ -104,7 +106,6 @@ def eval_training(epoch, testLoader):
 
     return correct.float() / len(testLoader.dataset)
 
-
 if __name__ == '__main__':
     print("Start training")
 
@@ -130,14 +131,14 @@ if __name__ == '__main__':
 
     # use warmup scheduler to avoid numerical instability in the beginning of the training
     warmup_scheduler = WarmUpLR(optimizer, iter_per_epoch * warm_up)
-    
 
     # create checkpoint folder to save models
     if not os.path.exists(checkpoint_path):
         os.makedirs(checkpoint_path)    
-    checkpoint_path = os.path.join(checkpoint_path, net_name, '{net}-{epoch}-{type}.pth')
+    checkpoint_path = os.path.join(checkpoint_path,'{net}-{epoch}-{type}.pth')
 
     best_acc = 0.0
+    start = time.time()
     for epoch in range(1, epochs):
         if epoch > warm_up:
             train_scheduler.step(epoch)
@@ -155,5 +156,5 @@ if __name__ == '__main__':
         if not epoch % save_epoch:
             print("Checkpoint save")
             torch.save(net.state_dict(), checkpoint_path.format(net=net_name, epoch=epoch, type='regular'))
-
+    print('Train time for one epoch: ', (time.time() - start) / epochs )
     print("Done with training")
