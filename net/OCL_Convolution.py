@@ -19,9 +19,9 @@ class OCL_Convolution(nn.Conv2d):
     def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding=0, dilation=1, groups=1, bias=False, padding_mode='zeros', use_ocl=False):
         self.use_ocl = use_ocl
         super(OCL_Convolution, self).__init__(in_channels, out_channels, kernel_size, stride, padding, dilation, groups, bias, padding_mode)
-
-        self.context = self.getOclContext()
-        self.programm = self.getOCLprogramm(self.context)
+        if use_ocl:
+          self.context = self.getOclContext()
+          self.programm = self.getOCLprogramm(self.context)
 
     def getOCLprogramm(self, oclContext):
         
