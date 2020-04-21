@@ -71,7 +71,6 @@ class Test(unittest.TestCase):
 
         netOcl = resnet50(True)
         netpy = resnet50(False)
-        net = resnet50(True)
 
         batch_size = 1
         _, testLoader = getDataLoaders(batch_size, batch_size)
