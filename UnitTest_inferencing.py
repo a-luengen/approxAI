@@ -1,6 +1,7 @@
 import unittest
 
 import time
+import os
 from net.ResNet import resnet50
 import torch
 import torchvision
@@ -14,7 +15,7 @@ class Test(unittest.TestCase):
     load_model_name = "resnet_50"
     load_model_time = '12-09-05-12-Sep-2019'
 
-    @unittest.skip("")
+    #@unittest.skip("")
     def test_0_createResNet50_and_inference_input_without_exception(self):
         net = resnet50(False)
 
@@ -32,7 +33,7 @@ class Test(unittest.TestCase):
         _, predicted = torch.max(outputs, 1)
         print(predicted)
 
-    @unittest.skip("")
+    #@unittest.skip("")
     def test_1_createResNet50_with_convolution_and_inference_input_without_exception(self):
         net = resnet50(True)
 
@@ -53,7 +54,7 @@ class Test(unittest.TestCase):
         print("Predicted:    ", classes[predicted[0]])
         print("Ground Truth: ", classes[labels[0]])
 
-    @unittest.skip("")
+    #@unittest.skip("")
     def test_2_getDimensionsOfInputDataForRandomBatchSize_testForDimensionality(self):
         batch_size = random.randrange(1, 15)
         _, testLoader = getDataLoaders(batch_size, batch_size)
@@ -77,6 +78,8 @@ class Test(unittest.TestCase):
 
         # weights have to be equal
         PATH = "checkpoints/test.dict"
+        if not os.path.exists('checkpoints'):
+            os.makedirs('checkpoints')
         torch.save(netOcl.state_dict(), PATH)
         netpy.load_state_dict(torch.load(PATH))
 
