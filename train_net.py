@@ -30,6 +30,8 @@ warm_up = 1 # default = 1
 save_epoch = 3 # save model after this amount of epochs
 milestones = [60, 120, 160]
 use_cuda = False
+use_colab = False
+
 
 def train(epoch):
 
@@ -107,11 +109,15 @@ def eval_training(epoch, testLoader):
     return correct.float() / len(testLoader.dataset)
 
 if __name__ == '__main__':
-    print("Start training")
+    print("Configuring...")
 
     net_name = "resnet_50"
     date_time_now = time.strftime("%H-%M-%S-%d-%m-%Y")
-    checkpoint_path = os.path.join('./checkpoints', net_name, date_time_now)
+
+    if use_colab:
+        checkpoint_path = os.path.join('drive/My Drive/ApproxAI/checkpoints', net_name, date_time_now)
+    else:
+        checkpoint_path = os.path.join('./checkpoints', net_name, date_time_now)
 
     print(checkpoint_path)
     net = resnet50()
@@ -133,10 +139,11 @@ if __name__ == '__main__':
     warmup_scheduler = WarmUpLR(optimizer, iter_per_epoch * warm_up)
 
     # create checkpoint folder to save models
-    if not os.path.exists(checkpoint_path):
-        os.makedirs(checkpoint_path)    
-    checkpoint_path = os.path.join(checkpoint_path,'{net}-{epoch}-{type}.pth')
+    if not os.path.exists(os.path.join(checkpoint_path, net_name)):
+        os.makedirs(os.path.join(checkpoint_path, net_name))    
+    checkpoint_path = os.path.join(checkpoint_path, net_name, '{net}-{epoch}-{type}.pth')
 
+    print('Started training...')
     best_acc = 0.0
     start = time.time()
     for epoch in range(1, epochs):
@@ -148,13 +155,13 @@ if __name__ == '__main__':
 
         #start to save best performance model after learning rate decay to 0.01 
         if epoch > milestones[1] and best_acc < acc:
-            print("Milestone save")
+            print("Milestone save!")
             torch.save(net.state_dict(), checkpoint_path.format(net=net_name, epoch=epoch, type='best'))
             best_acc = acc
             continue
 
         if not epoch % save_epoch:
-            print("Checkpoint save")
+            print("Checkpoint save!")
             torch.save(net.state_dict(), checkpoint_path.format(net=net_name, epoch=epoch, type='regular'))
     print('Train time for one epoch: ', (time.time() - start) / epochs )
-    print("Done with training")
+    print("Done with training!")
