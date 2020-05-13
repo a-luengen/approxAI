@@ -1,3 +1,12 @@
+float roundf(float val, int dec) {
+    if (dec > 9) { // max 9 or it gets "wired"
+        return val;
+    }
+    int shift = (int) pow((float)10, (float) dec);
+    int temp = shift * val;
+    return (float)temp / (float)shift;
+}
+
 void print2DFloatArray(float *_array, int height, int width);
 
 __kernel void convolution(
@@ -12,6 +21,7 @@ __kernel void convolution(
 ) {
 
     bool DEBUG = false;
+    int PRECISSION = 10; 
 
     int input_channels = k_dim[1];
 
@@ -42,7 +52,7 @@ __kernel void convolution(
         for(int i = 0; i < input_channels; i++) {
             float result = 0.0;
 
-            // calculate convolution on height, widht position 
+            // calculate convolution on height, width position 
             for(int j = 0; j < k_dim[2]; j++) { // height
                 
                 for(int k = 0; k < k_dim[3]; k++) { // width
@@ -63,10 +73,15 @@ __kernel void convolution(
 
                     int input_width_start_index = input_height_start_index + width_pos + k - kernel_mid_width;
                     
-                    float kernel_value = _kernel[kernel_width_pos_index];
-                    float input_value = _input[input_width_start_index];
+                    float kernel_value = roundf(_kernel[kernel_width_pos_index], PRECISSION);
 
-                    result += kernel_value * input_value;
+                    if(false && get_global_id(0) == 1 && height_pos == 4 && width_pos == 4) {
+                        printf("std: %.20f\n", _kernel[kernel_width_pos_index]);
+                        printf("rnd: %.20f\n", roundf(_kernel[kernel_width_pos_index], PRECISSION));
+                    }
+                    float input_value = roundf(_input[input_width_start_index], PRECISSION);
+
+                    result += roundf(kernel_value * input_value, PRECISSION);
                     
                     // if(DEBUG && get_global_id(0) == 1 && height_pos == 4 && width_pos == 4) {
                         
@@ -91,7 +106,7 @@ __kernel void convolution(
                     // }
                 }
             }
-            temp_sum += result;
+            temp_sum += roundf(result, PRECISSION);
         }
         // if(DEBUG && out_channel == 0 && height_pos == 1 && width_pos == 1) {
         //     printf("Writing value=%.5f on height=%d, width=%d, index=%d\n", 
@@ -103,7 +118,7 @@ __kernel void convolution(
         int out_channel_start_index = get_global_id(0) * o_dim[1] * o_dim[2];
         int out_height_start_index = get_global_id(1) * o_dim[2];
         int out_width_index = get_global_id(2);
-        _output[out_channel_start_index + out_height_start_index + out_width_index] = bias[out_channel] + temp_sum;
+        _output[out_channel_start_index + out_height_start_index + out_width_index] = roundf(bias[out_channel] + temp_sum, PRECISSION);
     }
 
     // barrier(CLK_GLOBAL_MEM_FENCE);
