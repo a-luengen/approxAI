@@ -15,6 +15,14 @@ class Test(unittest.TestCase):
     load_model_name = "resnet_50"
     load_model_time = '12-09-05-12-Sep-2019'
 
+    def equalizeWeights(self, torch_net, ocl_net):
+        # weights have to be equal
+        PATH = "checkpoints/test.dict"
+        if not os.path.exists('checkpoints'):
+            os.makedirs('checkpoints')
+        torch.save(ocl_net.state_dict(), PATH)
+        torch_net.load_state_dict(torch.load(PATH))
+
     #@unittest.skip("")
     def test_0_createResNet50_and_inference_input_without_exception(self):
         net = resnet50(False)
@@ -31,7 +39,7 @@ class Test(unittest.TestCase):
         outputs = net(images)
 
         _, predicted = torch.max(outputs, 1)
-        print(predicted)
+        #print(predicted)
 
     #@unittest.skip("")
     def test_1_createResNet50_with_convolution_and_inference_input_without_exception(self):
@@ -45,7 +53,7 @@ class Test(unittest.TestCase):
         dataIter = iter(testLoader)
         images, labels = dataIter.next()
 
-        print("Run inferencing...")
+        #print("Run inferencing...")
         outputs = net(images)
 
         _, predicted = torch.max(outputs, 1)
@@ -71,16 +79,10 @@ class Test(unittest.TestCase):
 
         netOcl = resnet50(True)
         netpy = resnet50(False)
+        self.equalizeWeights(netpy, netOcl)
 
-        batch_size = 1
+        batch_size = 100
         _, testLoader = getDataLoaders(batch_size, batch_size)
-
-        # weights have to be equal
-        PATH = "checkpoints/test.dict"
-        if not os.path.exists('checkpoints'):
-            os.makedirs('checkpoints')
-        torch.save(netOcl.state_dict(), PATH)
-        netpy.load_state_dict(torch.load(PATH))
 
         netOcl.eval()
         netpy.eval()
@@ -99,11 +101,22 @@ class Test(unittest.TestCase):
         _, predicted_ocl = torch.max(outputs_ocl, 1)
         _, predicted_py = torch.max(outputs_py, 1)
         
-        self.assertTrue(torch.equal(predicted_ocl, predicted_py))
-        self.assertEqual(classes[predicted_py[0]], classes[predicted_ocl[0]], 
-            "OpenCL and reference PyTorch implementation predictions are not equal: torch={} - ocl={}."
-                .format(classes[predicted_py[0]], classes[predicted_ocl[0]])
-        )
+        for (pred_ocl, pred_py) in zip(predicted_ocl, predicted_py):
+            #print("ocl-predict: ", classes[pred_ocl])
+            #print("py-predict:  ", classes[pred_py])
+
+            self.assertTrue(torch.equal(pred_ocl, pred_py))
+            self.assertEqual(classes[pred_py], classes[pred_ocl], 
+                "OpenCL and reference PyTorch implementation predictions are not equal: torch={} - ocl={}."
+                    .format(classes[pred_py], classes[pred_ocl])
+            )
+    @unittest.skip("")
+    def test_4_inferenceOCL_with_batchSize100_againstPyTorch(self):
+        netOcl = resnet50(True)
+        netpy = resnet50(False)
+
+        batch_size = 100
+
 
 if __name__ == "__main__":
     unittest.main()
