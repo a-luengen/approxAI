@@ -62,15 +62,23 @@ class OCL_Convolution(nn.Conv2d):
         output_width = (input_dim[2] - kernel_dim[3] + 2 * self.padding[1]) // self.stride[1] + 1
         return np.array([self.out_channels, output_height, output_width], dtype=np.int32)
 
-    def performOCLconvolution(self, input, weight):
+    def performOCLconvolution(self, input: torch.Tensor, weight: torch.Tensor) -> torch.Tensor:
         """
             Takes input and weight as torch.tensor type 
             and performs the correct convolution on them
             to produce a torch.tensor type result
-            Input tensor has to be (channels, height, width)
-            Weights are (out_channels, in_channels , height, width)
             WARNING: do not use 4D tensor with batchsize
+
+            Parameters
+            ----------
+            input: torch.Tensor
+                Tensor from the Input to perform the convolution on.
+                (in_channels, height, width)
+            weight: torch.Tensor
+                Internal weights of this Convolution-Layer.
+                (out_channels, in_channels, height, width)
         """
+
         assert (len(input.shape) == 3), "Input shapes size was {}".format(len(input.shape))
         assert (len(weight.shape) == 4)
         
@@ -78,12 +86,21 @@ class OCL_Convolution(nn.Conv2d):
         out_result = self.OCLconvolution(input.detach().numpy(), weight.detach().numpy(), bias)
         return torch.tensor(out_result)
 
-    def OCLconvolution(self, input_3d, kernel_4d, bias):
+    def OCLconvolution(self, input_3d: np.ndarray, kernel_4d: np.ndarray, bias: np.ndarray) -> np.ndarray:
         """
             Takes 3 dimensional input_3d and 3 dimensional
             weight as numpy array to perform the convolution with
             Returns 3 dimensional numpy-array as result
+
+            Parameters
+            ----------
+            input_3d: np.ndarray
+                3 dimensional numpy array representing values from a tensor containing
+                values of a single batch from the input.
+                (in_channels, height, width)
+
         """
+
         assert(len(input_3d.shape) == 3)
         assert(len(kernel_4d.shape) == 4)
         if self.bias is not None:
@@ -110,7 +127,7 @@ class OCL_Convolution(nn.Conv2d):
         buffer_x = cl.Buffer(ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=np_x)
         buffer_dim_x = cl.Buffer(ctx ,mf.READ_ONLY |mf.COPY_HOST_PTR, hostbuf=np_dim_x)
 
-        # 2. kernel, with dimensions
+        # 2. kernel with dimensions
         np_kernel = kernel_4d
         np_dim_kernel = np.array(np_kernel.shape, dtype=np.int32)
 
